@@ -124,11 +124,29 @@ describe('Transaction precision, account identity, and atomicity', () => {
     if (side === 'sender') {
       await post({ type: 'withdrawal', fromAccount: A, currency: 'USD', amount }).expect(201);
     } else {
+      // Keep setup representable as a JSON number; 90 trillion plus 3.21 loses a cent.
+      await post({ type: 'withdrawal', fromAccount: B, currency: 'USD', amount: 0.01 }).expect(201);
       await post({ ...deposit, toAccount: B, amount }).expect(201);
     }
     const before = await snapshot(app, [A, B, C]);
     const response = await post({ type: 'transfer', fromAccount: A, toAccount: B,
       currency: 'USD', amount: 1_000_000_000_000 }).expect(400);
+    expectValidation(response.body, 'amount', /balance.*safe|safe.*precision/i);
+    expect(await snapshot(app, [A, B, C])).toEqual(before);
+  });
+
+  it.each(['sender', 'recipient'] as const)('rejects transfer losing a cent in the %s response atomically', async side => {
+    await post({ ...deposit, toAccount: C, currency: 'EUR' }).expect(201);
+    await post({ ...deposit, toAccount: side === 'sender' ? B : A, amount: 1 }).expect(201);
+    const amount = 90071992547409.9;
+    if (side === 'sender') {
+      await post({ type: 'withdrawal', fromAccount: A, currency: 'USD', amount }).expect(201);
+    } else {
+      await post({ ...deposit, toAccount: B, amount }).expect(201);
+    }
+    const before = await snapshot(app, [A, B, C]);
+    const response = await post({ type: 'transfer', fromAccount: A, toAccount: B,
+      currency: 'USD', amount: 0.01 }).expect(400);
     expectValidation(response.body, 'amount', /balance.*safe|safe.*precision/i);
     expect(await snapshot(app, [A, B, C])).toEqual(before);
   });

@@ -29,7 +29,7 @@ Codex read the assignment, checked the existing folder and root documentation, c
 - Startup uses TypeScript compilation through `ts-node`, preserving decorator metadata needed by NestJS.
 - Initial dependency installation found an unavailable `@types/currency-codes` package. The unavailable package was removed before retrying installation.
 
-## Verification
+## Initial implementation verification
 
 Actual verification performed:
 
@@ -45,3 +45,18 @@ Actual verification performed:
 ## Human review before submission
 
 Review the transaction rules, run the documented commands, inspect error responses, and capture real screenshots. The repository root requires a detailed PR describing features, AI use, challenges, verification, and visual evidence. Do not claim personal verification or comparisons with AI tools that were not performed.
+
+## Review fixes and verification — 2026-11-22
+
+The user requested implementation of the review fixes and selected code, tests, and documentation only. Screenshots, commits, and PR updates remain outside this change.
+
+- The expanded baseline suite reproduced 17 failures out of 92 tests, covering monetary rounding, tiny-number validation, mixed-case accounts, and rate-limit bypasses.
+- Decimal representations now convert exactly to integer hundredths. The repository stores hundredths and exposes the existing numeric API fields. Writes reject unsafe integer balances and balances that would lose cents in a JSON numeric response.
+- Amount validation rejects tiny exponential numbers with field-level 400 responses instead of throwing. Alphanumeric account suffixes support both letter cases while preserving identity.
+- Injectable middleware replaces the route guard and runs before JSON parsing and routing. It shares the configured Nest throttler storage across normal requests, errors, and unknown routes. Tests exercise the configured middleware, including IP normalization, isolation, and controlled expiry.
+- Transfer validation computes both affected balances in one scan of a history snapshot; no separate mutable ledger was added. Existing history fixtures already distinguish accounts, types, and dates and assert exact returned records.
+- `npm run typecheck` and `npm run build`: passed.
+- `npm test -- --no-cache`: 5 suites, 124 tests passed. HTTP tests ran outside the socket-restricted sandbox.
+- Both live demos passed against separate fresh compiled servers on temporary loopback ports: `demo/sample-requests.mjs` checked transactions, balances, filtering, and errors; `demo/rate-limit.mjs` confirmed requests 1–100 succeeded and request 101 returned 429 with `Retry-After: 60`. Both servers were shut down afterwards.
+
+This follow-up verification supersedes the initial live-demo limitation above. Screenshot capture and PR evidence are still manual submission steps.

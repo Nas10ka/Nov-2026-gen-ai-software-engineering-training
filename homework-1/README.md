@@ -13,7 +13,7 @@ A minimal REST API implementing Tasks 1–3 and Task 4 option D from [TASKS.md](
 - Create transactions, list history, retrieve a transaction, and calculate account balances.
 - Validate monetary amounts, account IDs, transaction types, and ISO 4217 currencies.
 - Combine account, type, and inclusive UTC date filters.
-- Share a limit of 100 requests per minute per IP across API routes; return HTTP 429 when exceeded.
+- Share a limit of 100 requests per minute per IP across all request paths; return HTTP 429 when exceeded.
 - Return useful JSON errors, including field-level validation details.
 
 Options A (summary), B (interest), and C (CSV export) are not implemented yet.
@@ -41,7 +41,9 @@ Create a transfer:
 
 The response adds a server-generated UUID, UTC ISO 8601 `timestamp`, and `status: "completed"`. Deposits require only `toAccount`; withdrawals require only `fromAccount`; transfers require both. Responses use `null` for an absent account field. Irrelevant account fields, unknown properties, and client-supplied generated fields are rejected.
 
-Amounts must be JSON numbers greater than zero with at most two decimal places. The API uses integer hundredths internally, including for JPY, following this assignment's two-decimal rule rather than currency-specific minor-unit rules. Unsafe amounts and resulting balances are rejected. Currency codes must be uppercase ISO 4217 codes recognized by the installed `currency-codes` dataset. Account IDs match `ACC-[A-Z0-9]{5}` exactly. Transfers between the same account are rejected.
+Amounts must be JSON numbers greater than zero with at most two decimal places. Validation and conversion use the parsed number's decimal representation. Transactions store exact integer hundredths internally, including for JPY, following this assignment's two-decimal rule rather than currency-specific minor-unit rules. Amounts and balances must fit within ±9,007,199,254,740,991 hundredths; resulting balances must also retain the same cents when serialized as JSON numbers. Writes that exceed either precision constraint return 400 before storage changes. For example, depositing `90071992547409.9` and withdrawing `90071992547409` leaves exactly `0.9`.
+
+Currency codes must be uppercase ISO 4217 codes recognized by the installed `currency-codes` dataset. Account IDs match `ACC-[A-Za-z0-9]{5}` exactly. Suffixes may contain uppercase or lowercase letters and digits; account identity remains case-sensitive. Transfers between the same account are rejected.
 
 Example balance response:
 
@@ -71,11 +73,11 @@ Validation example:
 ```json
 {
   "error": "Validation failed",
-  "details": [{"field":"amount","message":"amount must not be less than 0.01"}]
+  "details": [{"field":"amount","message":"Amount must be a positive number with at most two decimal places within safe monetary precision"}]
 }
 ```
 
-The limiter uses NestJS throttler's in-memory TTL and blocking behavior. Recognized API routes share one IP key, including requests rejected by validation. Unknown routes are handled by Nest's 404 handler outside the route guard. Proxy trust is disabled, so `X-Forwarded-For` cannot reset the quota. Run locally against `127.0.0.1`. Restarting clears both transactions and quotas.
+The limiter uses NestJS throttler's in-memory storage with a 60-second TTL and a 60-second block after exceeding the quota. Middleware runs before JSON parsing and routing, so valid requests, validation failures, malformed JSON, and unknown routes share one IP quota. Proxy trust is disabled, so `X-Forwarded-For` cannot reset the quota. IPv4-mapped IPv6 addresses share their IPv4 quota; distinct IPv6 addresses retain independent quotas. Run locally against `127.0.0.1`. Restarting clears both transactions and quotas.
 
 ## Structure and extension points
 
@@ -86,14 +88,14 @@ src/
   app.module.ts           Module composition
   transactions/           DTOs, controller, business service, repository, money helpers
   accounts/               Balance endpoint using the transaction service
-  rate-limiting/          Global IP throttling guard
+  rate-limiting/          IP throttling middleware before JSON parsing and routing
   common/                 Validation and HTTP error formatting
-test/                    Service/storage and end-to-end HTTP tests
+test/                    Money conversion, configured middleware, and HTTP regression tests
 demo/                    Startup, sample data, requests, and rate-limit demo
 docs/                    AI workflow and screenshot guidance
 ```
 
-Nest dependency injection keeps routing separate from transaction rules and storage. The transaction repository owns stored records and returns copies. Account balances are derived from the same transaction history, avoiding a second mutable ledger. Writes validate all affected balances before saving.
+Nest dependency injection keeps routing separate from transaction rules and storage. The transaction repository owns records containing integer hundredths and returns copies with the public numeric amount field. Account balances are derived from the same transaction history, avoiding a second mutable ledger. Each write calculates all affected balances in one pass over one history snapshot, then validates them before saving. History scans remain linear in the number of transactions.
 
 Future summary and interest endpoints can extend account services; CSV export can extend transaction routes. Add `/transactions/export` before the dynamic ID route when implementing option C. There are no placeholder feature implementations or database dependencies.
 
@@ -120,7 +122,7 @@ Restart the API before each automated demo. For the quota demo:
 node homework-1/demo/rate-limit.mjs
 ```
 
-Tests cover transaction types, validation, lookup, decimal arithmetic, multiple currencies, negative balances, date boundaries, combined filters, rejected-write atomicity, shared quotas, IP isolation, and limiter expiry. See [HOWTORUN.md](HOWTORUN.md) for complete instructions.
+Tests cover transaction types, field-level validation, lookup, exact monetary conversion, numeric precision boundaries, case-sensitive alphanumeric accounts, multiple currencies, negative balances, date boundaries, combined filters, rejected-write atomicity, and quotas covering malformed JSON and unknown routes. Configured middleware tests verify IP isolation and timed recovery. See [HOWTORUN.md](HOWTORUN.md) for complete instructions.
 
 ## AI workflow and submission evidence
 

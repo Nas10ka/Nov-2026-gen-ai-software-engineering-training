@@ -134,7 +134,7 @@ Follow [docs/screenshots/README.md](docs/screenshots/README.md). Capture actual 
 | Demo says storage is not empty | Restart the server; it uses in-memory storage. |
 | Missing modules | Run `npm ci` inside `homework-1`. |
 | `dist/main.js` missing | Run `npm run build` before `npm run start:prod`. |
-| Invalid account | Use `ACC-` plus exactly five uppercase letters or digits. |
+| Invalid account | Use `ACC-` plus exactly five letters or digits. Letter case is preserved and distinguishes accounts. |
 | No results for date filters | Use UTC dates containing your generated timestamps. |
 
 Restarting deliberately deletes all transactions and rate-limit counters. The service binds to the local loopback interface and does not trust proxy headers.

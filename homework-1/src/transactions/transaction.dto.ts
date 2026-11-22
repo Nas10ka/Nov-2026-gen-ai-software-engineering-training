@@ -1,5 +1,6 @@
-import { IsIn, IsNumber, IsString, Matches, ValidateIf, Min } from 'class-validator';
+import { IsIn, IsString, Matches, ValidateBy, ValidateIf } from 'class-validator';
 import { ACCOUNT_PATTERN, TransactionType, TYPES } from '../common/validation';
+import { isMonetaryAmount } from './money';
 
 export class CreateTransactionDto {
   @ValidateIf((body, value) => body.type !== 'deposit' || value !== undefined)
@@ -12,8 +13,13 @@ export class CreateTransactionDto {
   @Matches(ACCOUNT_PATTERN)
   toAccount?: string;
 
-  @IsNumber({ allowInfinity: false, allowNaN: false, maxDecimalPlaces: 2 })
-  @Min(0.01)
+  @ValidateBy({
+    name: 'isMonetaryAmount',
+    validator: {
+      validate: isMonetaryAmount,
+      defaultMessage: () => 'Amount must be a positive number with at most two decimal places within safe monetary precision',
+    },
+  })
   amount!: number;
 
   @IsString()

@@ -4,7 +4,7 @@ import currencyCodes from 'currency-codes';
 import { invalid } from '../common/validation';
 import { CreateTransactionDto, TransactionQueryDto } from './transaction.dto';
 import { TransactionRepository } from './transaction.repository';
-import { toMinorUnits } from './money';
+import { fromMinorUnits, toMinorUnits } from './money';
 
 @Injectable()
 export class TransactionsService {
@@ -22,10 +22,12 @@ export class TransactionsService {
       invalid('toAccount', 'Transfer accounts must be different');
     }
     const minor = toMinorUnits(input.amount);
+    const affected = new Set([input.fromAccount, input.toAccount].filter((account): account is string => !!account));
+    const balances = this.balancesFor(affected);
     for (const [account, delta] of [[input.fromAccount, -minor], [input.toAccount, minor]] as const) {
       if (!account) continue;
-      const current = this.balanceMinor(account)[input.currency] ?? 0;
-      if (!Number.isSafeInteger(current + delta)) invalid('amount', 'Resulting balance exceeds safe monetary precision');
+      const current = balances.get(account)?.[input.currency] ?? 0;
+      fromMinorUnits(current + delta);
     }
     return this.repository.save({
       ...input, fromAccount: input.fromAccount ?? null, toAccount: input.toAccount ?? null,
@@ -59,12 +61,20 @@ export class TransactionsService {
   }
 
   balanceMinor(accountId: string): Record<string, number> {
-    const balances: Record<string, number> = {};
-    for (const transaction of this.repository.all()) {
-      let delta = 0;
-      if (transaction.toAccount === accountId) delta += toMinorUnits(transaction.amount);
-      if (transaction.fromAccount === accountId) delta -= toMinorUnits(transaction.amount);
-      if (delta !== 0) balances[transaction.currency] = (balances[transaction.currency] ?? 0) + delta;
+    return this.balancesFor(new Set([accountId])).get(accountId) ?? {};
+  }
+
+  private balancesFor(accounts: ReadonlySet<string>): Map<string, Record<string, number>> {
+    const balances = new Map<string, Record<string, number>>();
+    for (const transaction of this.repository.snapshot()) {
+      for (const [account, delta] of [
+        [transaction.fromAccount, -transaction.amountMinor], [transaction.toAccount, transaction.amountMinor],
+      ] as const) {
+        if (!account || !accounts.has(account)) continue;
+        const currencies = balances.get(account) ?? {};
+        currencies[transaction.currency] = (currencies[transaction.currency] ?? 0) + delta;
+        balances.set(account, currencies);
+      }
     }
     return balances;
   }
