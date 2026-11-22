@@ -1,0 +1,6 @@
+[
+  {"toAccount":"ACC-12345","amount":100.50,"currency":"USD","type":"deposit"},
+  {"fromAccount":"ACC-12345","toAccount":"ACC-67890","amount":20.25,"currency":"USD","type":"transfer"},
+  {"fromAccount":"ACC-67890","amount":5.25,"currency":"USD","type":"withdrawal"},
+  {"toAccount":"ACC-12345","amount":50,"currency":"EUR","type":"deposit"}
+]
