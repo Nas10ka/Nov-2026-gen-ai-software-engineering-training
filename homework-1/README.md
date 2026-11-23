@@ -79,6 +79,90 @@ Validation example:
 
 The limiter uses NestJS throttler's in-memory storage with a 60-second TTL and a 60-second block after exceeding the quota. Middleware runs before JSON parsing and routing, so valid requests, validation failures, malformed JSON, and unknown routes share one IP quota. Proxy trust is disabled, so `X-Forwarded-For` cannot reset the quota. IPv4-mapped IPv6 addresses share their IPv4 quota; distinct IPv6 addresses retain independent quotas. Run locally against `127.0.0.1`. Restarting clears both transactions and quotas.
 
+## Manual API requests
+
+With the server running, copy these commands into another terminal on macOS/Linux. `curl -i` shows the HTTP status, headers, and JSON response. These examples use port `3000`; change it if needed.
+
+For the balances below, start with a fresh server and execute each POST once, in the order shown. Manual requests create real in-memory transactions and consume the same rate-limit quota as demos. Restart before running either demo afterwards.
+
+**Deposit 100.50 USD into ACC-12345.** Expected: HTTP `201`, a generated `id`, UTC `timestamp`, and `status: "completed"`.
+
+```bash
+curl -i -X POST http://127.0.0.1:3000/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{"toAccount":"ACC-12345","amount":100.50,"currency":"USD","type":"deposit"}'
+```
+
+**Transfer 20.25 USD to ACC-67890.** Expected: HTTP `201`. USD balances become `80.25` and `20.25`.
+
+```bash
+curl -i -X POST http://127.0.0.1:3000/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{"fromAccount":"ACC-12345","toAccount":"ACC-67890","amount":20.25,"currency":"USD","type":"transfer"}'
+```
+
+**Withdraw 5.25 USD from ACC-67890.** Expected: HTTP `201`; its USD balance becomes `15`.
+
+```bash
+curl -i -X POST http://127.0.0.1:3000/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{"fromAccount":"ACC-67890","amount":5.25,"currency":"USD","type":"withdrawal"}'
+```
+
+**Deposit 50 EUR into ACC-12345.** Expected: HTTP `201`; EUR is tracked separately from USD.
+
+```bash
+curl -i -X POST http://127.0.0.1:3000/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{"toAccount":"ACC-12345","amount":50,"currency":"EUR","type":"deposit"}'
+```
+
+**Read account balances.** Expected: HTTP `200`; `ACC-12345` has `USD 80.25` and `EUR 50`, while `ACC-67890` has `USD 15`.
+
+```bash
+curl -i http://127.0.0.1:3000/accounts/ACC-12345/balance
+curl -i http://127.0.0.1:3000/accounts/ACC-67890/balance
+```
+
+**List all transactions.** Expected: HTTP `200` and the four transactions in creation order.
+
+```bash
+curl -i http://127.0.0.1:3000/transactions
+```
+
+**Find a transaction by ID.** Paste an `id` from a successful POST response when prompted. Expected: HTTP `200` and that saved transaction.
+
+```bash
+printf 'Paste a transaction ID and press Enter: '
+read -r TRANSACTION_ID
+curl -i "http://127.0.0.1:3000/transactions/$TRANSACTION_ID"
+```
+
+**Combine account, type, and date filters.** Expected: HTTP `200` and only the `20.25 USD` transfer, if created today in UTC. Both date boundaries are inclusive.
+
+```bash
+DEMO_DAY=$(date -u +%Y-%m-%d)
+curl -i --get http://127.0.0.1:3000/transactions \
+  --data-urlencode 'accountId=ACC-12345' \
+  --data-urlencode 'type=transfer' \
+  --data-urlencode "from=$DEMO_DAY" \
+  --data-urlencode "to=$DEMO_DAY"
+```
+
+**Check invalid amount handling.** Expected: HTTP `400`, `error: "Validation failed"`, and an `amount` detail. History and balances must remain unchanged.
+
+```bash
+curl -i -X POST http://127.0.0.1:3000/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{"toAccount":"ACC-12345","amount":-1,"currency":"USD","type":"deposit"}'
+```
+
+**Check missing transaction handling.** Expected: HTTP `404` with an error saying the transaction was not found.
+
+```bash
+curl -i http://127.0.0.1:3000/transactions/missing
+```
+
 ## Structure and extension points
 
 ```text
