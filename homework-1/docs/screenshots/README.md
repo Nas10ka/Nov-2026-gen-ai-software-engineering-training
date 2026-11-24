@@ -1,13 +1,20 @@
-# Screenshot Checklist
+# Screenshots
 
-Capture real evidence after verification. Add 3–5 PNG files here and embed them in the submission PR. Do not include credentials or private information.
+There are three folders: 
+- **`API transactions requests`** - the script sample-responses.sh runs all possible API requests, each request contains the goal of API request and expected result, in the end it compares to the actual response and prints status PASS or FAIL.
 
-1. **`01-ai-planning.png`** — Show your prompt and Codex's plan or generated code. Include the NestJS/TypeScript choice if visible.
-2. **`02-api-running.png`** — Show `npm start`, successful Nest module startup, and the printed local URL.
-3. **`03-transactions-and-balances.png`** — Show the sample demo's created transaction, combined history filter, and separate USD/EUR balances.
-4. **`04-validation-and-rate-limit.png`** — Show a field-level HTTP 400 response and request 101 returning HTTP 429 with `Retry-After`. Run the quota demo after restarting.
-5. **`05-tests.png`** — Show passing tests, type checking, and the build. Include totals and enough command context to identify the project.
+- **`Chat with CODEX`** - I asked codex to create a plan, approved it and asked for implementation and adding the tests. - Here all tests were running sucessfully. 
+After the implementation was done I asked in a new chat to review the logic. At this step it found some logic issues. I asked to add the proper integration tests that will cover those gaps. - Here I got more tests and some of them were failing.
+In the first chat I asked to review the tests and to fix the logic so it would pass the tests. 
+In the third chat I ask to add script with samples of transactions, so I could automatically check all API requests and responses. 
+In the end I asked to create node script to send 101 request and validate that if there were send within 60 sec. The 101th request should fail with TOO MANY REQUESTS ERROR. And added a timer to be sure that 100 concurrent requests are taking less than 60 seconds. 
 
-If limited to three screenshots, combine server and API output, then combine validation and test evidence. Keep text legible. Link additional terminal recordings or demo output if a single image becomes crowded.
-
-The scripts create terminal evidence, not screenshots. Capture your own application and AI interaction using your operating system's screenshot tool.
+- **`Install and Run`** - there is a script that will run for you all commands
+```
+npm install
+npm run test
+npm run typecheck
+npm run build
+npm run start
+```
+On the screenshots it's shown that all tests are pass and application is running. 

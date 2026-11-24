@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const base = (process.env.BASE_URL ?? 'http://127.0.0.1:3000').replace(/\/$/, '');
-const windowMs = 60_000;
+const windowMs =  60_000;
 console.log(`Rate-limit demo against ${base}. Restart the server first; do not send other requests during this demo.`);
 console.log('Meaning: One IP shares a quota across transaction history and account balance routes. These GET requests do not create transactions.');
 console.log('Expected: Requests 1–100 return HTTP 200; request 101 returns HTTP 429 with a positive Retry-After delay in seconds.');
