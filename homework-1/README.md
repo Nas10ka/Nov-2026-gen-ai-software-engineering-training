@@ -1,6 +1,6 @@
 # Banking Transactions API — Homework 1
 
-**Author:** Anastasiia
+**Author:** Anastasiia Yatsura
 
 **AI tool:** OpenAI Codex
 
