@@ -1,0 +1,37 @@
+@baseUrl = http://127.0.0.1:3000
+
+### Deposit
+POST {{baseUrl}}/transactions
+Content-Type: application/json
+
+{"toAccount":"ACC-12345","amount":100.50,"currency":"USD","type":"deposit"}
+
+### Transfer
+POST {{baseUrl}}/transactions
+Content-Type: application/json
+
+{"fromAccount":"ACC-12345","toAccount":"ACC-67890","amount":20.25,"currency":"USD","type":"transfer"}
+
+### Withdrawal
+POST {{baseUrl}}/transactions
+Content-Type: application/json
+
+{"fromAccount":"ACC-67890","amount":5.25,"currency":"USD","type":"withdrawal"}
+
+### List transactions
+GET {{baseUrl}}/transactions
+
+### Replace date range to include your demo date
+GET {{baseUrl}}/transactions?accountId=ACC-12345&type=transfer&from=2026-01-01&to=2026-12-31
+
+### Replace ID with one returned by POST
+GET {{baseUrl}}/transactions/REPLACE_WITH_ID
+
+### Currency-separated balances
+GET {{baseUrl}}/accounts/ACC-12345/balance
+
+### Validation error
+POST {{baseUrl}}/transactions
+Content-Type: application/json
+
+{"toAccount":"ACC-12345","amount":-1,"currency":"USD","type":"deposit"}
